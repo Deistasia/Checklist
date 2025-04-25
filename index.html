@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Чеклист на неделю</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; background: #f0f2f5; }
+    h1 { text-align: center; }
+    .user-select { margin-bottom: 10px; }
+    .days { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+    .day-btn { padding: 10px 15px; cursor: pointer; border: none; background: #ddd; border-radius: 5px; }
+    .day-btn.active { background: #5e81ac; color: white; }
+    .tasks { margin-top: 20px; max-width: 400px; margin-left: auto; margin-right: auto; }
+    .task { display: flex; align-items: center; margin-bottom: 10px; }
+    .task input[type="checkbox"] { margin-right: 10px; }
+  </style>
+</head>
+<body>
+
+<h1>Чеклист недели 🗓️</h1>
+
+<div class="user-select">
+  Я — 
+  <select id="user">
+    <option value="user1">Настя</option>
+    <option value="user2">Гриша</option>
+  </select>
+</div>
+
+<div class="days" id="day-buttons"></div>
+
+<div class="tasks" id="task-list"></div>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+
+<script>
+  // ⬇️ ВСТАВЬ СВОИ ДАННЫЕ ЗДЕСЬ
+  const firebaseConfig = {
+    apiKey: "AIzaSyD_s1qYFW00kgDKalSr_vwEkCxtvgHKMKY",
+    authDomain: "check-list-archeage.firebaseapp.com",
+    databaseURL: "https://check-list-archeage-default-rtdb.firebaseio.com/",
+    projectId: "check-list-archeage",
+    storageBucket: "check-list-archeage.firebasestorage.app",
+    messagingSenderId: "189792073386",
+    appId: "1:189792073386:web:b982dc9463dd00329902d3"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+
+  const daysOfWeek = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+  const defaultTasks = ["Задание 1", "Задание 2", "Задание 3"];
+
+  const dayButtonsDiv = document.getElementById('day-buttons');
+  const taskListDiv = document.getElementById('task-list');
+  const userSelect = document.getElementById('user');
+
+  let selectedDay = 'Пн';
+
+  // создаем кнопки дней недели
+  daysOfWeek.forEach(day => {
+    const btn = document.createElement('button');
+    btn.textContent = day;
+    btn.className = 'day-btn';
+    if (day === selectedDay) btn.classList.add('active');
+    btn.addEventListener('click', () => {
+      selectedDay = day;
+      renderDays();
+      loadTasks();
+    });
+    dayButtonsDiv.appendChild(btn);
+  });
+
+  function renderDays() {
+    const buttons = document.querySelectorAll('.day-btn');
+    buttons.forEach(btn => {
+      btn.classList.toggle('active', btn.textContent === selectedDay);
+    });
+  }
+
+  function loadTasks() {
+    const user = userSelect.value;
+    const ref = db.ref(`checklist/${user}/${selectedDay}`);
+    ref.once('value', snapshot => {
+      let tasks = snapshot.val();
+      if (!tasks) {
+        tasks = defaultTasks.map(text => ({ text, done: false }));
+        ref.set(tasks);
+      }
+      renderTasks(tasks);
+    });
+  }
+
+  function renderTasks(tasks) {
+    taskListDiv.innerHTML = '';
+    tasks.forEach((task, index) => {
+      const div = document.createElement('div');
+      div.className = 'task';
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.checked = task.done;
+      checkbox.addEventListener('change', () => {
+        const user = userSelect.value;
+        const ref = db.ref(`checklist/${user}/${selectedDay}/${index}/done`);
+        ref.set(checkbox.checked);
+      });
+      const label = document.createElement('span');
+      label.textContent = task.text;
+      div.appendChild(checkbox);
+      div.appendChild(label);
+      taskListDiv.appendChild(div);
+    });
+  }
+
+  // автообновление при смене пользователя
+  userSelect.addEventListener('change', loadTasks);
+
+  loadTasks();
+</script>
+
+</body>
+</html>
